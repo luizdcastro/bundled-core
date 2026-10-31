@@ -1,0 +1,12 @@
+[package]
+name = "bundled-core"
+version = "0.1.0"
+edition = "2021"
+description = "Bundled's detection core: reads Solana launches and finds coordinated wallets."
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+bs58 = "0.5"
