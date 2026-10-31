@@ -879,7 +879,7 @@ pub fn analyze(inp: &Input) -> Report {
     let dust_raw = (inp.supply as f64 * DUST_PCT / 100.0) as u64;
     let dust_holders = people.iter().filter(|(_, a)| *a < dust_raw).count();
     let mut sorted: Vec<&(String, u64)> = people.clone();
-    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted.sort_by_key(|x| std::cmp::Reverse(x.1));
     let top10: u128 = sorted.iter().take(10).map(|(_, a)| *a as u128).sum();
     // One identical balance across many wallets: a supply split up to look like a crowd of buyers.
     let mut same: HashMap<u64, usize> = HashMap::new();
@@ -1245,7 +1245,7 @@ pub fn analyze(inp: &Input) -> Report {
             ],
         ));
     }
-    signals.sort_by(|a, b| b.weight.cmp(&a.weight));
+    signals.sort_by_key(|x| std::cmp::Reverse(x.weight));
     // A curve's leftover still in its vault is as good as held by the wallet it's kept for, and a curve that kept most
     // of the supply from buyers stays rigged after that wallet has sold it: what it kept counts at least.
     let kept = summary.set_aside_pct.max(summary.set_aside_taken_pct);
@@ -1969,7 +1969,7 @@ fn signals(
             ],
         ));
     }
-    out.sort_by(|a, b| b.weight.cmp(&a.weight));
+    out.sort_by_key(|x| std::cmp::Reverse(x.weight));
     out
 }
 
@@ -2121,6 +2121,38 @@ fn split_buyback<'t>(candidates: &[(usize, &'t Trade)], sold: u64) -> Option<Vec
         }
     }
     None
+}
+
+/// Other wallets that bought in the same bundled transaction as `wallet`.
+fn block0_cotraders(block0: &[Block0Tx], wallet: &str) -> Option<usize> {
+    block0
+        .iter()
+        .filter(|t| t.kind == "bundle" || t.kind == "coordinated" || t.kind == "create")
+        .find(|t| t.wallets.len() >= 2 && t.wallets.iter().any(|w| w == wallet))
+        .map(|t| t.wallets.len() - 1)
+}
+
+/// Wallets whose buys landed back-to-back right after the creator's bundle,
+/// outside it: next in the block with no unrelated transaction in between.
+fn contiguous_after_create(block0: &[Block0Tx]) -> HashSet<&str> {
+    let mut out = HashSet::new();
+    let mut txs: Vec<&Block0Tx> = block0.iter().filter(|t| t.idx.is_some()).collect();
+    txs.sort_by_key(|t| t.idx);
+    let Some(last_own) = txs
+        .iter()
+        .filter(|t| t.kind == "create" || t.kind == "bundle")
+        .filter_map(|t| t.idx)
+        .max()
+    else {
+        return out;
+    };
+    for (next, t) in (last_own + 1..).zip(txs.iter().filter(|t| t.idx > Some(last_own))) {
+        if t.idx != Some(next) {
+            break;
+        }
+        out.extend(t.wallets.iter().map(String::as_str));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -3058,38 +3090,4 @@ mod tests {
         assert_eq!(risk(90.0, 45.0, &sumo).0, "extreme");
         assert_eq!(risk(0.0, 0.5, &[]).0, "low");
     }
-}
-
-/// Other wallets that bought in the same bundled transaction as `wallet`.
-fn block0_cotraders(block0: &[Block0Tx], wallet: &str) -> Option<usize> {
-    block0
-        .iter()
-        .filter(|t| t.kind == "bundle" || t.kind == "coordinated" || t.kind == "create")
-        .find(|t| t.wallets.len() >= 2 && t.wallets.iter().any(|w| w == wallet))
-        .map(|t| t.wallets.len() - 1)
-}
-
-/// Wallets whose buys landed back-to-back right after the creator's bundle,
-/// outside it: next in the block with no unrelated transaction in between.
-fn contiguous_after_create(block0: &[Block0Tx]) -> HashSet<&str> {
-    let mut out = HashSet::new();
-    let mut txs: Vec<&Block0Tx> = block0.iter().filter(|t| t.idx.is_some()).collect();
-    txs.sort_by_key(|t| t.idx);
-    let Some(last_own) = txs
-        .iter()
-        .filter(|t| t.kind == "create" || t.kind == "bundle")
-        .filter_map(|t| t.idx)
-        .max()
-    else {
-        return out;
-    };
-    let mut next = last_own + 1;
-    for t in txs.iter().filter(|t| t.idx > Some(last_own)) {
-        if t.idx != Some(next) {
-            break;
-        }
-        out.extend(t.wallets.iter().map(String::as_str));
-        next += 1;
-    }
-    out
 }

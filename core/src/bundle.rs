@@ -141,7 +141,7 @@ pub fn analyze_bundle(creator: &str, supply: u64, buys: &[Buy]) -> BundleAnalysi
     }
     let creator_raw = per.remove(creator).unwrap_or(0);
     let mut others: Vec<(&str, u128)> = per.into_iter().collect();
-    others.sort_by(|a, b| b.1.cmp(&a.1));
+    others.sort_by_key(|x| std::cmp::Reverse(x.1));
     let total_raw = creator_raw + others.iter().map(|(_, r)| r).sum::<u128>();
     BundleAnalysis {
         wallets: others.into_iter().map(|(w, _)| w.to_string()).collect(),

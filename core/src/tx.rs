@@ -171,7 +171,7 @@ impl Tx {
     }
 
     pub fn mentions(&self, address: &str) -> bool {
-        self.account_keys().iter().any(|k| *k == address)
+        self.account_keys().contains(&address)
     }
 
     /// Net change in raw `mint` balance per owner. Positive means the owner received tokens.
