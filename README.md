@@ -20,18 +20,7 @@ On a Solana launchpad anyone can create a token in a few seconds. A common trick
 4. **What happened next.** Who still holds, who sold, who sent tokens on to new wallets, how much supply was burned, and whether the coin crashed and who sold into it.
 5. **Verdict.** All of it becomes a short, plain-English verdict and a risk level, with every number traceable to the transactions behind it. Supply always adds up to 100%.
 
-```mermaid
-flowchart LR
-  WS["Solana websocket<br/>(launches)"] --> ING["Ingest"]
-  ING --> SCAN["First-second scan"]
-  RPC["Solana RPC<br/>(history, holders)"] --> CORE["bundled-core<br/>(this repo)"]
-  SCAN --> CORE
-  CORE --> DB[("PostgreSQL")]
-  DB --> API["Rust API"]
-  API --> WEB["Website"]
-  API --> EXT["Chrome extension"]
-  API --> BOTS["Telegram and X bots"]
-```
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg"><img alt="Launches stream in and get a first-second scan; bundled-core reads them with chain history and holders; results go to PostgreSQL and a Rust API that serves the website, the Chrome extension and the Telegram and X bots." src="docs/architecture-light.svg" width="100%"></picture>
 
 ## What's in here
 
